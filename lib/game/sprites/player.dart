@@ -149,6 +149,15 @@ class Player extends SpriteGroupComponent<PlayerState>
         jump();
         return;
       }
+    } else if (other is SpringBoard) {
+      // Add lines from here...
+      jump(specialJumpSpeed: jumpSpeed * 2);
+      return;
+    } else if (other is BrokenPlatform &&
+        other.current == BrokenPlatformState.cracked) {
+      jump();
+      other.breakPlatform();
+      return;
     }
   }
 
