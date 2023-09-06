@@ -111,7 +111,11 @@ class Player extends SpriteGroupComponent<PlayerState>
     _hAxisInput = 0;
 
     // Add a Player to the game: Add logic for moving left
-    current = PlayerState.left;
+    if (isWearingHat) {
+      current = PlayerState.nooglerLeft;
+    } else if (!hasPowerup) {
+      current = PlayerState.left;
+    }
 
     _hAxisInput += movingLeftInput;
   }
@@ -119,11 +123,13 @@ class Player extends SpriteGroupComponent<PlayerState>
   void moveRight() {
     _hAxisInput = 0;
 
-    current = PlayerState.right;
-
-    _hAxisInput += movingRightInput;
-
     // Add a Player to the game: Add logic for moving right
+    if (isWearingHat) {
+      current = PlayerState.nooglerRight;
+    } else if (!hasPowerup) {
+      current = PlayerState.right;
+    }
+    _hAxisInput += movingRightInput;
   }
 
   void resetDirection() {
@@ -131,17 +137,27 @@ class Player extends SpriteGroupComponent<PlayerState>
   }
 
   // Powerups: Add hasPowerup getter
+  bool get hasPowerup => // Add lines from here...
+      current == PlayerState.rocket ||
+      current == PlayerState.nooglerLeft ||
+      current == PlayerState.nooglerRight ||
+      current == PlayerState.nooglerCenter;
 
   // Powerups: Add isInvincible getter
+  bool get isInvincible => current == PlayerState.rocket;
 
   // Powerups: Add isWearingHat getter
+  bool get isWearingHat =>
+      current == PlayerState.nooglerLeft ||
+      current == PlayerState.nooglerRight ||
+      current == PlayerState.nooglerCenter;
 
   // Core gameplay: Override onCollision callback
   @override
   void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
     super.onCollision(intersectionPoints, other);
 
-    if (other is EnemyPlatform) {
+    if (other is EnemyPlatform && !isInvincible) {
       gameRef.onLose();
       return;
     }
@@ -154,14 +170,30 @@ class Player extends SpriteGroupComponent<PlayerState>
       if (other is NormalPlatform) {
         jump();
         return;
+      } else if (other is SpringBoard) {
+        jump(specialJumpSpeed: jumpSpeed * 2);
+        return;
+      } else if (other is BrokenPlatform &&
+          other.current == BrokenPlatformState.cracked) {
+        jump();
+        other.breakPlatform();
+        return;
       }
-    } else if (other is SpringBoard) {
-      jump(specialJumpSpeed: jumpSpeed * 2);
+    }
+
+    if (!hasPowerup && other is Rocket) {
+      // Add lines from here...
+      current = PlayerState.rocket;
+      other.removeFromParent();
+      jump(specialJumpSpeed: jumpSpeed * other.jumpSpeedMultiplier);
       return;
-    } else if (other is BrokenPlatform &&
-        other.current == BrokenPlatformState.cracked) {
-      jump();
-      other.breakPlatform();
+    } else if (!hasPowerup && other is NooglerHat) {
+      if (current == PlayerState.center) current = PlayerState.nooglerCenter;
+      if (current == PlayerState.left) current = PlayerState.nooglerLeft;
+      if (current == PlayerState.right) current = PlayerState.nooglerRight;
+      other.removeFromParent();
+      _removePowerupAfterTime(other.activeLengthInMS);
+      jump(specialJumpSpeed: jumpSpeed * other.jumpSpeedMultiplier);
       return;
     }
   }
